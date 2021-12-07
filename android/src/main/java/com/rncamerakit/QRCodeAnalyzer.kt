@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.Barcode
 import com.google.mlkit.vision.common.InputImage
 
 class QRCodeAnalyzer (
@@ -13,7 +15,7 @@ class QRCodeAnalyzer (
     override fun analyze(image: ImageProxy) {
         val inputImage = InputImage.fromMediaImage(image.image!!, image.imageInfo.rotationDegrees)
 
-        val scanner = BarcodeScanning.getClient()
+        val scanner = BarcodeScanning.getClient(BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_PDF417).build())
         scanner.process(inputImage)
             .addOnSuccessListener { barcodes ->
                 val strBarcodes = mutableListOf<String>()

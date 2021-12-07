@@ -1143,10 +1143,12 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
 
 - (BOOL)isSupportedBarCodeType:(NSString *)currentType {
     BOOL result = NO;
-    NSArray *supportedBarcodeTypes = @[AVMetadataObjectTypeUPCECode,AVMetadataObjectTypeCode39Code,AVMetadataObjectTypeCode39Mod43Code,
-                                       AVMetadataObjectTypeEAN13Code,AVMetadataObjectTypeEAN8Code, AVMetadataObjectTypeCode93Code,
-                                       AVMetadataObjectTypeCode128Code, AVMetadataObjectTypePDF417Code, AVMetadataObjectTypeQRCode,
-                                       AVMetadataObjectTypeAztecCode, AVMetadataObjectTypeDataMatrixCode];
+    // NSLog(@"TZ Type: %@", currentType);
+    // NSArray *supportedBarcodeTypes = @[AVMetadataObjectTypeUPCECode,AVMetadataObjectTypeCode39Code,AVMetadataObjectTypeCode39Mod43Code,
+    //                                    AVMetadataObjectTypeEAN13Code,AVMetadataObjectTypeEAN8Code, AVMetadataObjectTypeCode93Code,
+    //                                    AVMetadataObjectTypeCode128Code, AVMetadataObjectTypePDF417Code, AVMetadataObjectTypeQRCode,
+    //                                    AVMetadataObjectTypeAztecCode, AVMetadataObjectTypeDataMatrixCode, @"org.iso.PDF417"];
+    NSArray *supportedBarcodeTypes = @[AVMetadataObjectTypePDF417Code, @"org.iso.PDF417"];                                       
     for (NSString* object in supportedBarcodeTypes) {
         if ([currentType isEqualToString:object]) {
             result = YES;

@@ -16,6 +16,7 @@ import android.provider.MediaStore
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.*
+import android.util.Size
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.annotation.ColorInt
@@ -213,6 +214,7 @@ class CKCamera(context: ThemedReactContext) : FrameLayout(context), LifecycleObs
         // ImageAnalysis
         imageAnalyzer = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setTargetResolution(Size(720, 1280))
                 .build()
 
         val useCases = mutableListOf(preview, imageCapture)
