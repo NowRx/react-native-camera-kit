@@ -40,6 +40,8 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import android.net.Uri
+import java.util.UUID
 
 @SuppressLint("ViewConstructor") // Extra constructors unused. Not using visual layout tools
 class CKCamera(context: ThemedReactContext) : FrameLayout(context), LifecycleObserver {
@@ -283,34 +285,10 @@ class CKCamera(context: ThemedReactContext) : FrameLayout(context), LifecycleObs
 
     fun capture(options: Map<String, Any>, promise: Promise) {
         // Create output options object which contains file + metadata
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "IMG_" + System.currentTimeMillis())
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-        }
-
-        // Create the output file option to store the captured image in MediaStore
-        val outputOptions = when (outputPath) {
-            null -> ImageCapture.OutputFileOptions
-                    .Builder(
-                            context.contentResolver,
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            contentValues
-                    )
-                    .build()
-            else -> ImageCapture.OutputFileOptions
-                    .Builder(File(outputPath))
-                    .build()
-        }
-
+        val photoFile = File.createTempFile(UUID.randomUUID().toString(), ".jpg")
+        // Create output options object which contains file + metadata
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
         flashViewFinder()
-
-        val audio = getActivity().getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (audio.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
-            MediaActionSound().play(MediaActionSound.SHUTTER_CLICK);
-        }
-
-        // Setup image capture listener which is triggered after photo has
-        // been taken
         imageCapture?.takePicture(
                 outputOptions, ContextCompat.getMainExecutor(getActivity()), object : ImageCapture.OnImageSavedCallback {
             override fun onError(ex: ImageCaptureException) {
@@ -320,18 +298,11 @@ class CKCamera(context: ThemedReactContext) : FrameLayout(context), LifecycleObs
 
             override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                 try {
-                    val savedUri = output.savedUri.toString()
-                    onPictureTaken(savedUri)
-                    Log.d(TAG, "CameraView: Photo capture succeeded: $savedUri")
-
+                    val savedUri = Uri.fromFile(photoFile)
+                    val msg = "TZ Photo capture succeeded: $savedUri"
+                    Log.d(TAG, msg)
                     val imageInfo = Arguments.createMap()
-                    imageInfo.putString("uri", savedUri)
-                    imageInfo.putString("id", output.savedUri?.path)
-                    imageInfo.putString("name", output.savedUri?.lastPathSegment)
-                    imageInfo.putInt("width", width)
-                    imageInfo.putInt("height", height)
-                    imageInfo.putString("path", output.savedUri?.path)
-
+                    imageInfo.putString("uri", savedUri.toString())
                     promise.resolve(imageInfo)
                 } catch (ex: Exception) {
                     Log.e(TAG, "Error while saving or decoding saved photo: ${ex.message}", ex)
