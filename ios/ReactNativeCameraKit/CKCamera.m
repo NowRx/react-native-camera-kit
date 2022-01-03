@@ -12,6 +12,7 @@
 #import "CKCamera.h"
 #import "CKCameraOverlayView.h"
 #import "CKMockPreview.h"
+#import <CoreMotion/CoreMotion.h>
 
 static void * CapturingStillImageContext = &CapturingStillImageContext;
 static void * SessionRunningContext = &SessionRunningContext;
@@ -68,7 +69,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 
 @interface CKCamera () <AVCaptureMetadataOutputObjectsDelegate>
 
-
 @property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
 @property (nonatomic, strong) CKMockPreview *mockPreview;
 @property (nonatomic, strong) UIView *focusView;
@@ -124,6 +124,10 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 
 @implementation CKCamera
 
+AVCaptureVideoOrientation orientationLast;
+CMMotionManager *motionManager;
+AVCaptureVideoOrientation orientationNew;
+
 #pragma mark - initializtion
 
 - (void)dealloc
@@ -163,9 +167,50 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 
 }
 
+
+- (void)initializeMotionManager{
+   motionManager = [[CMMotionManager alloc] init];
+   motionManager.accelerometerUpdateInterval = .2;
+   motionManager.gyroUpdateInterval = .2;
+
+   [motionManager startAccelerometerUpdatesToQueue:[NSOperationQueue currentQueue]
+                                       withHandler:^(CMAccelerometerData  *accelerometerData, NSError *error) {
+                                           if (!error) {
+                                               [self outputAccelerationData:accelerometerData.acceleration];
+                                           }
+                                           else{
+                                               NSLog(@"%@", error);
+                                           }
+                                       }];
+}
+
+- (void)outputAccelerationData:(CMAcceleration)acceleration{
+ if (acceleration.x >= 0.75 && orientationLast != AVCaptureVideoOrientationLandscapeLeft) {
+     orientationNew = AVCaptureVideoOrientationLandscapeLeft;
+ }
+ else if (acceleration.x <= -0.75  && orientationLast != AVCaptureVideoOrientationLandscapeRight) {
+     orientationNew = AVCaptureVideoOrientationLandscapeRight;
+ }
+ else if (acceleration.y <= -0.75) {
+     orientationNew = AVCaptureVideoOrientationPortrait;
+ }
+ else if (acceleration.y >= 0.75) {
+     orientationNew = AVCaptureVideoOrientationPortraitUpsideDown;
+ }
+ else {
+     // Consider same as last time
+     return;
+ }
+
+ if (orientationNew == orientationLast)
+     return;
+
+ orientationLast = orientationNew;
+}
+
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
-
+    [self initializeMotionManager];
     if (self){
         // Create the AVCaptureSession.
         self.session = [[AVCaptureSession alloc] init];
@@ -534,28 +579,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     
     dispatch_async( self.sessionQueue, ^{
         AVCaptureConnection *connection = [self.stillImageOutput connectionWithMediaType:AVMediaTypeVideo];
-
-        UIImageOrientation imageOrientation = UIImageOrientationUp;
-        switch([UIDevice currentDevice].orientation) {
-            default:
-            case UIDeviceOrientationPortrait:
-                connection.videoOrientation = AVCaptureVideoOrientationPortrait;
-                imageOrientation = UIImageOrientationUp;
-                break;
-            case UIDeviceOrientationPortraitUpsideDown:
-                connection.videoOrientation = AVCaptureVideoOrientationPortraitUpsideDown;
-                imageOrientation = UIImageOrientationDown;
-                break;
-            case UIDeviceOrientationLandscapeLeft:
-                imageOrientation = UIImageOrientationRight;
-                connection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
-                break;
-            case UIDeviceOrientationLandscapeRight:
-                connection.videoOrientation = AVCaptureVideoOrientationLandscapeLeft;
-                imageOrientation = UIImageOrientationRightMirrored;
-                break;
-        }
-
+        connection.videoOrientation = orientationLast;
         // Capture a still image.
         [self.stillImageOutput captureStillImageAsynchronouslyFromConnection:connection completionHandler:^( CMSampleBufferRef imageDataSampleBuffer, NSError *error ) {
             if (!imageDataSampleBuffer) {
@@ -1143,11 +1167,6 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
 
 - (BOOL)isSupportedBarCodeType:(NSString *)currentType {
     BOOL result = NO;
-    // NSLog(@"TZ Type: %@", currentType);
-    // NSArray *supportedBarcodeTypes = @[AVMetadataObjectTypeUPCECode,AVMetadataObjectTypeCode39Code,AVMetadataObjectTypeCode39Mod43Code,
-    //                                    AVMetadataObjectTypeEAN13Code,AVMetadataObjectTypeEAN8Code, AVMetadataObjectTypeCode93Code,
-    //                                    AVMetadataObjectTypeCode128Code, AVMetadataObjectTypePDF417Code, AVMetadataObjectTypeQRCode,
-    //                                    AVMetadataObjectTypeAztecCode, AVMetadataObjectTypeDataMatrixCode, @"org.iso.PDF417"];
     NSArray *supportedBarcodeTypes = @[AVMetadataObjectTypePDF417Code, @"org.iso.PDF417"];                                       
     for (NSString* object in supportedBarcodeTypes) {
         if ([currentType isEqualToString:object]) {
